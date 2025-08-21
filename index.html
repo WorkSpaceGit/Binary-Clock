@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Time</title>
+  <style>
+    body {
+      background: #191919;
+      color: #0f0;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 40px;
+    }
+    h1 { color: #0f0; }
+    .clock {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .digit-column {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 5px;
+      align-items: center;
+    }
+    .bit {
+      width: 20px;
+      height: 20px;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: 4px;
+    }
+    .on {
+      background: #0f0;
+      box-shadow: 0 0 6px #0f0;
+    }
+    .spacer { width: 20px; }
+  </style>
+</head>
+<body>
+  <div class="clock" id="c"></div>
+
+  <script>
+    const bitLengths = [2, 4, 3, 4, 3, 4], c = document.getElementById('c');
+
+    bitLengths.forEach((n, i) => {
+      const col = Object.assign(document.createElement('div'), { className: 'digit-column' });
+      col.dataset.i = i;
+      col.innerHTML = '<div class="bit"></div>'.repeat(n);
+      c.appendChild(col);
+      if (i === 1 || i === 3) c.appendChild(Object.assign(document.createElement('div'), { className: 'spacer' }));
+    });
+
+    setInterval(() => {
+      const [h, m, s] = [new Date().getHours(), new Date().getMinutes(), new Date().getSeconds()];
+      [Math.floor(h/10), h%10, Math.floor(m/10), m%10, Math.floor(s/10), s%10]
+        .forEach((d, i) => {
+          d.toString(2).padStart(bitLengths[i], '0').split('').forEach((b, j) => {
+            c.querySelectorAll(`.digit-column[data-i="${i}"] .bit`)[j].classList.toggle('on', b === '1');
+          });
+        });
+    }, 1000);
+  </script>
+</body>
+</html>
