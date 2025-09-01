@@ -2,67 +2,111 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Time</title>
   <style>
     body {
-      background: #191919;
+      background: #111;
       color: #0f0;
       font-family: sans-serif;
+      margin: 0;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
+    }
+    .container {
+      transform: scale(2); /* збільшення у 2 рази */
+      transform-origin: center;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding-top: 40px;
     }
-    h1 { color: #0f0; }
+    h1 { 
+      color: #0f0; 
+      margin-bottom: 20px; 
+    }
     .clock {
       display: flex;
-      gap: 10px;
+      gap: 20px;
       align-items: flex-end;
     }
     .digit-column {
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
-      gap: 5px;
+      gap: 10px;
       align-items: center;
     }
     .bit {
-      width: 20px;
-      height: 20px;
+      width: 40px;
+      height: 40px;
       background: #222;
-      border: 1px solid #333;
-      border-radius: 4px;
+      border: 2px solid #333;
+      border-radius: 6px;
     }
     .on {
       background: #0f0;
-      box-shadow: 0 0 6px #0f0;
+      box-shadow: 0 0 12px #0f0;
     }
-    .spacer { width: 20px; }
+    .spacer { width: 40px; }
   </style>
 </head>
 <body>
-  <div class="clock" id="c"></div>
+  <div class="container">
+    <h1>Binary Clock</h1>
+    <div class="clock" id="c"></div>
+  </div>
 
   <script>
+    // --- favicon генератор ---
+    function setFavicon() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64; 
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+
+      ctx.font = "48px monospace";
+      ctx.fillStyle = "#0f0";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("∞", 32, 32);
+
+      const link = document.createElement('link');
+      link.rel = 'icon';
+      link.href = canvas.toDataURL('image/png');
+      document.head.appendChild(link);
+    }
+    setFavicon();
+
+    // --- побудова годинника ---
     const bitLengths = [2, 4, 3, 4, 3, 4], c = document.getElementById('c');
 
     bitLengths.forEach((n, i) => {
-      const col = Object.assign(document.createElement('div'), { className: 'digit-column' });
+      const col = document.createElement('div');
+      col.className = 'digit-column';
       col.dataset.i = i;
       col.innerHTML = '<div class="bit"></div>'.repeat(n);
       c.appendChild(col);
-      if (i === 1 || i === 3) c.appendChild(Object.assign(document.createElement('div'), { className: 'spacer' }));
+      if (i === 1 || i === 3) {
+        const spacer = document.createElement('div');
+        spacer.className = 'spacer';
+        c.appendChild(spacer);
+      }
     });
 
-    setInterval(() => {
+    function updateClock() {
       const [h, m, s] = [new Date().getHours(), new Date().getMinutes(), new Date().getSeconds()];
       [Math.floor(h/10), h%10, Math.floor(m/10), m%10, Math.floor(s/10), s%10]
         .forEach((d, i) => {
           d.toString(2).padStart(bitLengths[i], '0').split('').forEach((b, j) => {
-            c.querySelectorAll(`.digit-column[data-i="${i}"] .bit`)[j].classList.toggle('on', b === '1');
+            c.querySelectorAll(`.digit-column[data-i="${i}"] .bit`)[j]
+              .classList.toggle('on', b === '1');
           });
         });
-    }, 1000);
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
   </script>
 </body>
 </html>
