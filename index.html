@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <title>Binary Clock</title>
   <style>
+    :root {
+      --bit-size: 40px; /* динамічно змінюється через JS */
+      --gap: calc(var(--bit-size) / 4);
+    }
+
     body {
       background: #191919;
       color: #0f0;
@@ -17,45 +22,47 @@
       width: 100vw;
     }
     .container {
-      transform: scale(2); /* збільшення у 2 рази */
-      transform-origin: center;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
     h1 { 
       color: #0f0; 
-      margin-bottom: 20px; 
+      margin-bottom: calc(var(--gap) * 2);
+      font-size: calc(var(--bit-size) * 0.8);
     }
     .clock {
       display: flex;
-      gap: 20px;
+      gap: calc(var(--gap) * 2);
       align-items: flex-end;
     }
     .digit-column {
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
-      gap: 10px;
+      gap: var(--gap);
       align-items: center;
     }
     .bit {
-      width: 40px;
-      height: 40px;
+      width: var(--bit-size);
+      height: var(--bit-size);
       background: #222;
-      border: 2px solid #333;
-      border-radius: 6px;
+      border: calc(var(--bit-size) * 0.05) solid #333;
+      border-radius: 15%;
+      transition: background 0.2s, box-shadow 0.2s;
     }
     .on {
       background: #0f0;
-      box-shadow: 0 0 12px #0f0;
+      box-shadow: 0 0 calc(var(--bit-size) * 0.3) #0f0;
     }
-    .spacer { width: 40px; }
+    .spacer { 
+      width: var(--bit-size); 
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="clock" id="c"></div>
+   <div class="clock" id="c"></div>
   </div>
 
   <script>
@@ -72,22 +79,34 @@
       ctx.textBaseline = "middle";
       ctx.fillText("∞", 32, 32);
 
-      const link = document.createElement('link');
-      link.rel = 'icon';
+      let link = document.querySelector("link[rel='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
       link.href = canvas.toDataURL('image/png');
-      document.head.appendChild(link);
     }
     setFavicon();
 
     // --- побудова годинника ---
-    const bitLengths = [2, 4, 3, 4, 3, 4], c = document.getElementById('c');
+    const bitLengths = [2, 4, 3, 4, 3, 4];
+    const c = document.getElementById('c');
+    const bitRefs = [];
 
     bitLengths.forEach((n, i) => {
       const col = document.createElement('div');
       col.className = 'digit-column';
-      col.dataset.i = i;
-      col.innerHTML = '<div class="bit"></div>'.repeat(n);
+      const bits = [];
+      for (let j = 0; j < n; j++) {
+        const b = document.createElement('div');
+        b.className = 'bit';
+        col.appendChild(b);
+        bits.push(b);
+      }
       c.appendChild(col);
+      bitRefs[i] = bits;
+
       if (i === 1 || i === 3) {
         const spacer = document.createElement('div');
         spacer.className = 'spacer';
@@ -95,16 +114,40 @@
       }
     });
 
+    // --- оновлення годинника ---
     function updateClock() {
-      const [h, m, s] = [new Date().getHours(), new Date().getMinutes(), new Date().getSeconds()];
-      [Math.floor(h/10), h%10, Math.floor(m/10), m%10, Math.floor(s/10), s%10]
-        .forEach((d, i) => {
-          d.toString(2).padStart(bitLengths[i], '0').split('').forEach((b, j) => {
-            c.querySelectorAll(`.digit-column[data-i="${i}"] .bit`)[j]
-              .classList.toggle('on', b === '1');
-          });
-        });
+      const now = new Date();
+      const digits = [
+        Math.floor(now.getHours() / 10), now.getHours() % 10,
+        Math.floor(now.getMinutes() / 10), now.getMinutes() % 10,
+        Math.floor(now.getSeconds() / 10), now.getSeconds() % 10
+      ];
+
+      digits.forEach((d, i) => {
+        const bin = d.toString(2).padStart(bitLengths[i], '0');
+        for (let j = 0; j < bitLengths[i]; j++) {
+          const bitEl = bitRefs[i][j];
+          const isOn = bin[j] === '1';
+          if (bitEl.classList.contains('on') !== isOn) {
+            bitEl.classList.toggle('on', isOn);
+          }
+        }
+      });
     }
+
+    // --- динамічний розмір ---
+    function resizeClock() {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      // вибираємо розмір бітів так, щоб годинник займав приблизно 60–70% вікна
+      const size = Math.min(vw / 15, vh / 10);
+      document.documentElement.style.setProperty('--bit-size', `${size}px`);
+    }
+
+    window.addEventListener('resize', resizeClock);
+    resizeClock();
+
+    // старт
     updateClock();
     setInterval(updateClock, 1000);
   </script>
