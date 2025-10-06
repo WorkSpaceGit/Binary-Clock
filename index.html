@@ -5,7 +5,7 @@
   <title>Binary Clock</title>
   <style>
     :root {
-      --bit-size: 40px; /* динамічно змінюється через JS */
+      --bit-size: calc(min(15vw, 10vh));
       --gap: calc(var(--bit-size) / 4);
     }
 
@@ -21,21 +21,25 @@
       height: 100vh;
       width: 100vw;
     }
+
     .container {
       display: flex;
       flex-direction: column;
       align-items: center;
     }
+
     h1 { 
       color: #0f0; 
       margin-bottom: calc(var(--gap) * 2);
       font-size: calc(var(--bit-size) * 0.8);
     }
+
     .clock {
       display: flex;
       gap: calc(var(--gap) * 2);
       align-items: flex-end;
     }
+
     .digit-column {
       display: flex;
       flex-direction: column;
@@ -43,18 +47,23 @@
       gap: var(--gap);
       align-items: center;
     }
+
     .bit {
       width: var(--bit-size);
       height: var(--bit-size);
       background: #222;
       border: calc(var(--bit-size) * 0.05) solid #333;
       border-radius: 15%;
-      transition: background 0.2s, box-shadow 0.2s;
+      transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      will-change: background-color, box-shadow;
+      contain: paint;
     }
-    .on {
-      background: #0f0;
+
+    .bit.on {
+      background-color: #0f0;
       box-shadow: 0 0 calc(var(--bit-size) * 0.3) #0f0;
     }
+
     .spacer { 
       width: var(--bit-size); 
     }
@@ -66,64 +75,85 @@
   </div>
 
   <script>
-    // --- favicon (один раз, статичний) ---
+    // === Binary Clock Hybrid Pro ===
+
+    // --- favicon (оновлено, гарантовано працює у всіх браузерах) ---
     (function setFavicon() {
+      const existing = document.querySelector('link[rel="icon"]');
+      if (existing) existing.remove();
+
       const canvas = document.createElement('canvas');
-      canvas.width = 64; 
+      canvas.width = 64;
       canvas.height = 64;
       const ctx = canvas.getContext('2d');
-      ctx.font = "48px monospace";
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, 64, 64);
+      ctx.font = "bold 48px monospace";
       ctx.fillStyle = "#0f0";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("∞", 32, 32);
+      ctx.fillText("∞", 32, 35);
 
       const link = document.createElement('link');
       link.rel = 'icon';
+      link.type = 'image/png';
       link.href = canvas.toDataURL('image/png');
       document.head.appendChild(link);
     })();
 
-    // --- побудова годинника ---
+    // --- побудова DOM (з твоєї версії, структурно чисто) ---
     const bitLengths = [2, 4, 3, 4, 3, 4];
-    const c = document.getElementById('c');
+    const clockElement = document.getElementById('c');
     const bitRefs = [];
-    const bitState = []; // кеш стану
+    const bitState = [];
 
-    bitLengths.forEach((n, i) => {
+    function createBitColumn(length) {
       const col = document.createElement('div');
       col.className = 'digit-column';
-      const bits = [];
-      const state = [];
-      for (let j = 0; j < n; j++) {
-        const b = document.createElement('div');
-        b.className = 'bit';
-        col.appendChild(b);
-        bits.push(b);
-        state.push(false); // початково всі off
-      }
-      c.appendChild(col);
-      bitRefs[i] = bits;
-      bitState[i] = state;
 
-      if (i === 1 || i === 3) {
+      const bits = [];
+      const state = Array(length).fill(false);
+
+      for (let i = 0; i < length; i++) {
+        const bit = document.createElement('div');
+        bit.className = 'bit';
+        bit.setAttribute('aria-hidden', 'true'); // accessibility
+        col.appendChild(bit);
+        bits.push(bit);
+      }
+
+      return { column: col, bits, state };
+    }
+
+    bitLengths.forEach((length, index) => {
+      const result = createBitColumn(length);
+      clockElement.appendChild(result.column);
+      bitRefs[index] = result.bits;
+      bitState[index] = result.state;
+
+      if (index === 1 || index === 3) {
         const spacer = document.createElement('div');
         spacer.className = 'spacer';
-        c.appendChild(spacer);
+        clockElement.appendChild(spacer);
       }
     });
 
-    // --- оновлення годинника ---
+    // --- оновлення годинника (з твоєї версії, синхронізований setTimeout) ---
     function updateClock() {
-      const now = new Date();
+      const now = Date.now();
+      const time = new Date(now);
+
       const digits = [
-        Math.floor(now.getHours() / 10), now.getHours() % 10,
-        Math.floor(now.getMinutes() / 10), now.getMinutes() % 10,
-        Math.floor(now.getSeconds() / 10), now.getSeconds() % 10
+        Math.floor(time.getHours() / 10),
+        time.getHours() % 10,
+        Math.floor(time.getMinutes() / 10),
+        time.getMinutes() % 10,
+        Math.floor(time.getSeconds() / 10),
+        time.getSeconds() % 10
       ];
 
-      digits.forEach((d, i) => {
-        const bin = d.toString(2).padStart(bitLengths[i], '0');
+      digits.forEach((digit, i) => {
+        const bin = digit.toString(2).padStart(bitLengths[i], '0');
         for (let j = 0; j < bitLengths[i]; j++) {
           const isOn = bin[j] === '1';
           if (bitState[i][j] !== isOn) {
@@ -133,27 +163,25 @@
         }
       });
 
-      // синхронізація з реальною секундою
-      const delay = 1000 - (Date.now() % 1000);
+      const delay = 1000 - (now % 1000);
       setTimeout(updateClock, delay);
     }
 
-    // --- динамічний розмір (debounce) ---
-    let resizeTimer;
-    function resizeClock() {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        const size = Math.min(vw / 15, vh / 10);
-        document.documentElement.style.setProperty('--bit-size', `${size}px`);
-      }, 100);
+    // --- адаптивність (з твоєї версії: чисто через CSS, але fallback для старих браузерів) ---
+    function handleResize() {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const size = Math.min(vw / 15, vh / 10);
+      document.documentElement.style.setProperty('--bit-size', `${size}px`);
     }
 
-    window.addEventListener('resize', resizeClock);
-    resizeClock();
+    window.addEventListener('resize', () => {
+      clearTimeout(window._resizeTimer);
+      window._resizeTimer = setTimeout(handleResize, 120);
+    });
+    handleResize();
 
-    // старт
+    // --- запуск годинника ---
     updateClock();
   </script>
 </body>
